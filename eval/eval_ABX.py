@@ -80,7 +80,8 @@ def ABX(feature_function,
         divisor_speaker = index_speaker.sum(dim=0)
         phone_confusion = reduce_sparse_data(group_confusion.sum(dim=0),
                                              divisor_speaker)
-
+        scores['within_phone_confusion'] = phone_confusion.tolist()
+        scores['phones'] = ABXDataset.get_phones()
         scores['within'] = (phone_confusion.sum() /
                             (divisor_speaker > 0).sum()).item()
         print(f"...done. ABX within : {scores['within']}")
@@ -108,6 +109,8 @@ def ABX(feature_function,
         divisor_speaker = index_speaker.sum(dim=0)
         phone_confusion = reduce_sparse_data(group_confusion.sum(dim=0),
                                              divisor_speaker)
+        scores['across_phone_confusion'] = phone_confusion.tolist()
+        scores['phones'] = ABXDataset.get_phones()
         scores['across'] = (phone_confusion.sum() /
                             (divisor_speaker > 0).sum()).item()
         print(f"...done. ABX across : {scores['across']}")

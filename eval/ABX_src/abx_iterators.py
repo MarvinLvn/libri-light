@@ -164,15 +164,12 @@ class ABXFeatureLoader:
             bar.update(index)
             if fileID not in files_data:
                 continue
-
             features = feature_maker(file_path)
             if normalize:
                 features = normalize_with_singularity(features)
 
             features = features.detach().cpu()
-
             phone_data = files_data[fileID]
-
             for phone_start, phone_end, context_id, phone_id, speaker_id in phone_data:
 
                 index_start = max(
@@ -233,6 +230,9 @@ class ABXFeatureLoader:
 
     def get_n_sub_group(self, index_sub_group):
         return len(self.group_index[index_sub_group])
+
+    def get_phones(self):
+        return self.phone_match
 
     def get_iterator(self, mode, max_size_group):
         if mode == 'within':
