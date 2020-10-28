@@ -169,6 +169,7 @@ class ABXFeatureLoader:
                 features = normalize_with_singularity(features)
 
             features = features.detach().cpu()
+
             phone_data = files_data[fileID]
             for phone_start, phone_end, context_id, phone_id, speaker_id in phone_data:
 
@@ -177,12 +178,16 @@ class ABXFeatureLoader:
                 index_end = min(features.size(0),
                                 int(math.floor(self.stepFeature * phone_end - 0.5)))
 
+                if index_start == 0 and index_end == 0:
+                    index_end = 1
+
                 if index_start >= features.size(0) or index_end <= index_start:
                     continue
 
                 loc_size = index_end - index_start
                 self.features.append([totSize, loc_size, context_id,
                                       phone_id, speaker_id])
+
                 data.append(features[index_start:index_end])
                 totSize += loc_size
 

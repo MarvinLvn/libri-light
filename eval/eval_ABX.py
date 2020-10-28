@@ -73,7 +73,9 @@ def ABX(feature_function,
                                          group_confusion.size())
         divisor_context = torch.sparse.sum(index_, dim=3).to_dense()
         group_confusion = torch.sparse.sum(group_confusion, dim=3).to_dense()
+
         group_confusion = reduce_sparse_data(group_confusion, divisor_context)
+
         S, p1, p2 = group_confusion.size()
 
         index_speaker = divisor_context > 0
@@ -82,6 +84,7 @@ def ABX(feature_function,
                                              divisor_speaker)
         scores['within_phone_confusion'] = phone_confusion.tolist()
         scores['phones'] = ABXDataset.get_phones()
+
         scores['within'] = (phone_confusion.sum() /
                             (divisor_speaker > 0).sum()).item()
         print(f"...done. ABX within : {scores['within']}")
@@ -153,6 +156,8 @@ def parse_args(argv):
                              "less precise.")
     parser.add_argument("--out", type=str, default=None,
                         help="Path where the results should be saved")
+    parser.add_argument('--debug', action='store_true')
+
 
     # multi-gpu / multi-node
     return parser.parse_args(argv)
@@ -184,6 +189,9 @@ def main(argv):
 
     # Get the list of sequences
     seq_list = find_all_files(args.path_data, args.file_extension)
+
+    if args.debug:
+        seq_list = seq_list[:1000]
 
     scores = ABX(feature_function, args.path_item_file,
                  seq_list, args.distance_mode,
