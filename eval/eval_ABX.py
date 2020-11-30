@@ -44,11 +44,15 @@ def ABX(feature_function,
         modes,
         cuda=False,
         max_x_across=5,
-        max_size_group=30):
+        max_size_group=30,
+        phones=None,
+        contexts=None,
+        normalize=True):
 
     # ABX dataset
     ABXDataset = abx_it.ABXFeatureLoader(path_item_file, seq_list,
-                                         feature_function, step_feature, True)
+                                         feature_function, step_feature, normalize=normalize,
+                                         phones=phones, contexts=contexts)
 
     if cuda:
         ABXDataset.cuda()
@@ -84,6 +88,7 @@ def ABX(feature_function,
                                              divisor_speaker)
         scores['within_phone_confusion'] = phone_confusion.tolist()
         scores['phones'] = ABXDataset.get_phones()
+        scores['divisor_speaker_within'] = (divisor_speaker > 0).sum().item()
 
         scores['within'] = (phone_confusion.sum() /
                             (divisor_speaker > 0).sum()).item()
@@ -116,6 +121,8 @@ def ABX(feature_function,
         scores['phones'] = ABXDataset.get_phones()
         scores['across'] = (phone_confusion.sum() /
                             (divisor_speaker > 0).sum()).item()
+        scores['divisor_speaker_across'] = (divisor_speaker > 0).sum().item()
+
         print(f"...done. ABX across : {scores['across']}")
 
     return scores
@@ -156,6 +163,12 @@ def parse_args(argv):
                              "less precise.")
     parser.add_argument("--out", type=str, default=None,
                         help="Path where the results should be saved")
+    parser.add_argument("--phones", type=str, nargs='+', default=None,
+                        help="List of phones that will be tested. (default to all)")
+    parser.add_argument("--contexts", type=str, nargs='+', default=None,
+                        help="List of contexts that will be used. (default to all)")
+    parser.add_argument("--not_normalize", action='store_true',
+                        help="If activated, sequences are NOT normalized with singularity")
     parser.add_argument('--debug', action='store_true')
 
 
@@ -198,7 +211,10 @@ def main(argv):
                  step_feature, modes,
                  cuda=args.cuda,
                  max_x_across=args.max_x_across,
-                 max_size_group=args.max_size_group)
+                 max_size_group=args.max_size_group,
+                 phones=args.phones,
+                 contexts=args.contexts,
+                 normalize=not args.not_normalize)
 
     out_dir = Path(args.path_checkpoint).parent if args.out is None \
         else Path(args.out)

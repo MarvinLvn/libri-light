@@ -24,7 +24,7 @@ def normalize_with_singularity(x):
     return torch.cat([x, border_vect], dim=1)
 
 
-def load_item_file(path_item_file):
+def load_item_file(path_item_file, used_phones = None, used_contexts = None):
     r""" Load a .item file indicating the triplets for the ABX score. The
     input file must have the following fomat:
     line 0 : whatever (not read)
@@ -42,19 +42,28 @@ def load_item_file(path_item_file):
     phone_match = {}
     speaker_match = {}
     context_match = {}
+    tot_trials = 0
 
     for line in data:
         items = line.split()
         assert(len(items) == 7)
-        fileID = items[0]
-        if fileID not in out:
-            out[fileID] = []
 
         onset, offset = float(items[1]), float(items[2])
         context = '+'.join([items[4], items[5]])
         phone = items[3]
         speaker = items[6]
 
+        if used_phones is not None and phone not in used_phones:
+            continue
+
+        if used_contexts is not None and context not in used_contexts:
+            continue
+
+        fileID = items[0]
+        if fileID not in out:
+            out[fileID] = []
+
+        tot_trials += 1
         if phone not in phone_match:
             s = len(phone_match)
             phone_match[phone] = s
@@ -72,6 +81,21 @@ def load_item_file(path_item_file):
 
         out[fileID].append([onset, offset, context_id, phone_id, speaker_id])
 
+    if used_phones is not None or used_contexts is not None:
+        # Print some statistics
+        print("Found %d trials across %d speakers for :\n"
+              "phones : %s\n"
+              "contexts: %s" % (tot_trials, len(speaker_match),
+                                used_phones, used_contexts))
+
+        # Print number of trials per context
+        nb_trials_per_context = {v: 0 for v in context_match.values()}
+        for key, item_list in out.items():
+            for item in item_list:
+                context_id = item[2]
+                nb_trials_per_context[context_id] += 1
+        for key, value in context_match.items():
+            print("%s context : %d trials" % (key, nb_trials_per_context[value]))
     return out, context_match, phone_match, speaker_match
 
 
@@ -116,7 +140,9 @@ class ABXFeatureLoader:
                  seqList,
                  featureMaker,
                  stepFeature,
-                 normalize):
+                 normalize,
+                 phones=None,
+                 contexts=None):
         r"""
         Args:
             path_item_file (str): path to the .item files containing the ABX
@@ -138,7 +164,11 @@ class ABXFeatureLoader:
         """
 
         files_data, self.context_match, self.phone_match, self.speaker_match = \
-            load_item_file(path_item_file)
+            load_item_file(path_item_file, used_phones=phones, used_contexts=contexts)
+
+        if phones is not None or contexts is not None:
+            seqList = [item for item in seqList if item[0] in files_data.keys()]
+
         self.seqNorm = True
         self.stepFeature = stepFeature
         self.loadFromFileData(files_data, seqList, featureMaker, normalize)
@@ -157,11 +187,10 @@ class ABXFeatureLoader:
         print("Building the input features...")
         bar = progressbar.ProgressBar(maxval=len(seqList))
         bar.start()
-
         for index, vals in enumerate(seqList):
-
             fileID, file_path = vals
             bar.update(index)
+
             if fileID not in files_data:
                 continue
             features = feature_maker(file_path)
@@ -171,8 +200,8 @@ class ABXFeatureLoader:
             features = features.detach().cpu()
 
             phone_data = files_data[fileID]
-            for phone_start, phone_end, context_id, phone_id, speaker_id in phone_data:
 
+            for phone_start, phone_end, context_id, phone_id, speaker_id in phone_data:
                 index_start = max(
                     0, int(math.ceil(self.stepFeature * phone_start - 0.5)))
                 index_end = min(features.size(0),
