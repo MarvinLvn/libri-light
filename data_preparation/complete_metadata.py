@@ -3,6 +3,8 @@ import argparse
 from pathlib import Path
 import sys
 import json
+import itertools
+import numpy as np
 
 import metadata_completion.utilities as ut
 from metadata_completion.GenreScrapper import gather_all_genres
@@ -64,6 +66,17 @@ def main(argv):
     genre_list = gather_all_genres(args.path_metadata,
                                    list_metadata)
 
+    genre_list_tmp = []
+    for key, value in genre_list:
+        if value is None:
+            value = ["Undefined"]
+        genre_list_tmp.append((key,value))
+    genre_list = genre_list_tmp
+    
+    print("List of unique genres : ")
+    unique_genre = list(itertools.chain.from_iterable([vals for name, vals in genre_list]))
+    print(np.unique(unique_genre))
+    
     ut.get_updated_metadata(genre_list, args.path_metadata, path_out, "genre")
 
     # Fold the genres
@@ -71,7 +84,7 @@ def main(argv):
     reverse_folding_super = ut.build_reverse_folding(SUPER_GENDER_FOLDING)
     final_reverse_folding = ut.combine_reverse_foldings(reverse_folding_super,
                                                         reverse_folding_unique)
-
+ 
     # Convert the "dramatic reading" option into a binary tag
     has_dramatic_reading = [(name, 'Dramatic Readings' in vals)
                             for name, vals in genre_list]
@@ -85,7 +98,6 @@ def main(argv):
                                                                      final_reverse_folding),
                                                     SUPER_GENDER_ORDERING))
                      for name, vals in genre_list]
-
     ut.get_updated_metadata(folded_genres, path_out,
                             path_out, "meta_genre")
 
